@@ -19,11 +19,23 @@ import {
     getNewUserKey,
     Redis,
 } from '@fiora/database/redis/initRedis';
+import SMSClient from '@alicloud/sms-sdk';
 
 const { isValid } = Types.ObjectId;
 
 /** 一天时间 */
 const OneDay = 1000 * 60 * 60 * 24;
+
+
+// 阿里云短信服务 AccessKey ID 和 AccessKey Secret
+const accessKeyId = process.env.SmsAliyunAccesskey||"";
+const accessKeySecret = process.env.SmsAliyunAccesskeySecret||"";
+const signName = process.env.RegSmsAliyunSignName||""
+const templateCode = process.env.RegSmsAliyunTempladCode||""
+const smsVerifyCodeFlag  = process.env.SmsVerifyCodeFlag|| false
+
+// 初始化短信客户端
+const smsClient = new SMSClient({ accessKeyId, accessKeySecret });
 
 interface Environment {
     /** 客户端系统 */
@@ -79,20 +91,75 @@ async function getUserNotificationTokens(user: UserDocument) {
 }
 
 /**
+ * 
+ * @param phoneNumber 发送短信验证码
+ */
+export async function sendRegSmsVCode(ctx: Context<{phoneNumber: string } & Environment>) {
+    const { phoneNumber,environment} = ctx.data;
+    const digits = '0123456789';
+    let code = '';
+    for (let i = 0; i < length; i++) {
+        code += digits[Math.floor(Math.random() * 10)];
+    }
+    await Redis.set(`sms:code:${phoneNumber}`,code,60*5);
+    try {
+        const response = await smsClient.sendSMS({
+          PhoneNumbers: phoneNumber, // 接收短信的手机号码，多个号码用逗号分隔
+          SignName: signName,       // 短信签名
+          TemplateCode: templateCode, // 短信模板的 Code
+          TemplateParam: JSON.stringify({code}), // 模板参数（JSON 格式字符串）
+        });
+    
+        if (response.Code === 'OK') {
+          return '短信已下发'
+        } else {
+          return '短信下发失败，请稍后重试'
+        }
+      } catch (err) {
+        return '短信下发失败，请稍后重试'
+      } 
+}
+
+/**
+ * 
+ * @param phone 校验短信验证码
+ * @param inputCode 
+ * @returns 
+ */
+async function verifyCode(phone: string, inputCode: string): Promise<boolean> {
+    if(!smsVerifyCodeFlag){
+        return true;
+    }
+    const storedCode = await Redis.get(`sms:code:${phone}`);
+    if (!storedCode) {
+        throw new AssertionError({ message: '验证码已过期或不存在' });
+      
+    }
+    if (storedCode !== inputCode) {
+        throw new AssertionError({ message: '验证码不正确' });
+    }
+    return true;
+  }
+  
+
+/**
  * 注册新用户
  * @param ctx Context
  */
 export async function register(
-    ctx: Context<{ username: string; password: string } & Environment>,
+    ctx: Context<{ username: string; password: string;phone: string ; vCode: string } & Environment>,
 ) {
     assert(!config.disableRegister, '注册功能已被禁用, 请联系管理员开通账号');
 
-    const { username, password, os, browser, environment } = ctx.data;
+    const { username, password,phone,vCode, os, browser, environment } = ctx.data;
     assert(username, '用户名不能为空');
     assert(password, '密码不能为空');
 
     const user = await User.findOne({ username });
     assert(!user, '该用户名已存在');
+
+    const verifyCodeResult =  await verifyCode(phone,vCode)
+    assert(!verifyCodeResult,'短信验证码校验失败');
 
     const registeredCountWithin24Hours = await Redis.get(
         getNewRegisteredUserIpKey(ctx.socket.ip),
@@ -502,7 +569,7 @@ export async function resetUserPassword(ctx: Context<{ username: string }>) {
         throw new AssertionError({ message: '用户不存在' });
     }
 
-    const newPassword = 'helloworld';
+    const newPassword = '111111';
     const salt = await bcrypt.genSalt(SALT_ROUNDS);
     const hash = await bcrypt.hash(newPassword, salt);
 

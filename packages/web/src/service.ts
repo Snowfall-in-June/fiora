@@ -6,6 +6,20 @@ function saveUsername(username: string) {
 }
 
 /**
+ * 发送手机短信验证码
+ * @param phoneNo 
+ */
+export async function sendVCode(phoneNo:string) {
+    const [error,result] = await fetch('sendRegSmsVCode',{
+        phoneNo,
+    });
+    if(error){
+        return "发送短信验证码失败"
+    }
+    return result
+}
+
+/**
  * 注册新用户
  * @param username 用户名
  * @param password 密码

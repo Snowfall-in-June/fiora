@@ -53,4 +53,5 @@ export default {
         bucket: env.BUCKET || '',
         endpoint: env.ENDPOINT || '',
     },
+    
 };

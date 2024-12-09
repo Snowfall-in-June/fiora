@@ -35,6 +35,11 @@ sidebar_label: 配置
 | REGION             | string  | ''                                 | 阿里云 OSS 地域. 例如: `oss-cn-zhangjiakou`                                        |
 | BUCKET             | string  | ''                                 | 阿里云 OSS bucket 名称                                                             |
 | ENDPOINT           | string  | ''                                 | 阿里云 OSS 域名. 例如: `cdn.suisuijiang.com`                                       |
+| SmsAliyunAccesskey           | string  | ''                                 | 阿里云短信验证码key                                       |
+| SmsAliyunAccesskeySecret           | string  | ''                                 | 阿里云短信验证码密钥                    |
+| RegSmsAliyunSignName           | string  | ''                                 | 阿里云短信验证码签名                                      |
+| RegSmsAliyunTempladCode           | string  | ''                                 | 阿里云短信验证码模版code                                      |
+| SmsVerifyCodeFlag           | boolean  | false                                | 开启注册短信验证码校验                                       |
 
 ## 客户端配置
 
